@@ -1,0 +1,183 @@
+deployment:
+  mode: "local" # "local", "docker", "production"
+
+server:
+  address: ":8080"
+
+auth:
+  provider: "flexprice" # "flexprice" or "supabase"
+  secret: "031f6bbed1156eca651d48652c17a5bce727514cc804f185aca207153b2915abb79c0f1b53945915866dc3b63f37ea73aa86fc062f13e6008249e30819f87483"
+  supabase:
+    base_url: "http://localhost:54321"
+    service_key: "<supabase service key>"
+  api_key:
+    header: "x-api-key"
+    keys:
+      "c3b3fa371183f0df159d659da0b42c5270c8d53c22e180df2286e059c75802ab":
+        tenant_id: "00000000-0000-0000-0000-000000000000"
+        user_id: "00000000-0000-0000-0000-000000000000"
+        name: "Dev API Keys"
+        is_active: true
+
+kafka:
+  brokers: "localhost:29092" # For local mode
+  # Will be overridden by FLEXPRICE_KAFKA_BROKERS env var in Docker
+  consumer_group: "flexprice-consumer-local"
+  topic: "events"
+  topic_lazy: "events_lazy"
+  tls: false
+  use_sasl: false
+  sasl_mechanism: ""
+  sasl_user: ""
+  sasl_password: ""
+  client_id: "flexprice-client-local"
+  route_tenants_on_lazy_mode: []
+
+
+clickhouse:
+  address: 127.0.0.1:9000 # For local mode
+  # Will be overridden by FLEXPRICE_CLICKHOUSE_ADDRESS env var in Docker
+  tls: false
+  username: flexprice
+  password: flexprice123
+  database: flexprice
+
+postgres:
+  host: 127.0.0.1 # For local mode
+  # Will be overridden by FLEXPRICE_POSTGRES_HOST env var in Docker
+  port: 5432
+  user: flexprice
+  password: flexprice123
+  dbname: flexprice
+  sslmode: disable
+  max_open_conns: 10
+  max_idle_conns: 5
+  conn_max_lifetime_minutes: 60
+  auto_migrate: false
+
+sentry:
+  enabled: false # Set to true in production
+  dsn: "" # Add your Sentry DSN here
+  environment: "development" # Change to "production" in prod
+  sample_rate: 1.0 # Adjust sampling rate as needed (0.0 to 1.0)
+
+pyroscope:
+  enabled: false # Set to true to enable continuous profiling
+  server_address: "http://localhost:4040" # Pyroscope server URL or Grafana Cloud Profiles URL
+  application_name: "flexprice" # Your application name
+  basic_auth_user: "" # For Grafana Cloud (your stack user)
+  basic_auth_password: "" # For Grafana Cloud (your API key)
+  sample_rate: 100 # Sample rate in Hz (100 = 100 samples per second)
+  disable_gc_runs: false # Set to true if experiencing high CPU usage from GC
+
+event:
+  publish_destination: "kafka"
+
+dynamodb:
+  in_use: false
+  region: "us-east-1"
+  event_table_name: "events"
+
+logging:
+  level: "debug"
+
+webhook:
+  enabled: true
+  topic: "system_events"
+  pubsub: "memory"
+  consumer_group: "webhook-consumer-local"
+  max_retries: 3
+  initial_interval: 1s
+  max_interval: 10s
+  multiplier: 2.0
+  max_elapsed_time: 2m
+  tenants:
+    "00000000-0000-0000-0000-000000000000":
+      enabled: true
+      endpoint: "http://localhost:8080/health"
+      headers:
+        "X-Api-Key": "api-key-provided-by-tenant"
+      excluded_events:
+        - "tenant.created"
+        - "tenant.updated"
+  svix_config:
+    enabled: false
+    auth_token: "svix_auth_token"
+    base_url: "https://api.us.svix.com"
+
+temporal:
+  address: "127.0.0.1:7233" # For local mode
+  # Will be overridden by TEMPORAL_ADDRESS env var in Docker
+  tls: false
+  namespace: "default"
+  task_queue: "billing-task-queue"
+  api_key: "strong api key"
+  api_key_name: "secret name"
+  client_name: "flexprice-client"
+  retry:
+    initial_interval_seconds: 1
+    max_interval_seconds: 10
+    max_attempts: 3
+    backoff_coefficient: 2.0
+  connection:
+    dial_timeout_seconds: 5
+    retry_max_attempts: 5
+    retry_initial_interval_seconds: 1
+    retry_max_interval_seconds: 10
+    retry_backoff_coefficient: 1.5
+
+secrets:
+  encryption_key: "031f6bbed1156eca651d48652c17a5bce727514cc804f185aca207153b2915abb79c0f1b53945915866dc3b63f37ea73aa86fc062f13e6008249e30819f87483"
+
+billing:
+  tenant_id: ""
+  environment_id: ""
+
+s3:
+  enabled: false
+  region: "ap-south-1"
+  invoice:
+    bucket: "flexprice-invoices"
+    presign_expiry_duration: "1h"
+    key_prefix: ""
+
+cache:
+  enabled: false
+
+event_processing:
+  topic: "events"
+  rate_limit: 12
+  consumer_group: "flexprice-consumer-local"
+
+event_processing_lazy:
+  topic: "events_lazy"
+  rate_limit: 12
+  consumer_group: "v1_event_processing_lazy"
+
+
+event_post_processing:
+  topic: "events_post_processing"
+  rate_limit: 12
+  consumer_group: "v1_events_post_processing"
+  topic_backfill: "events_post_processing_backfill"
+  rate_limit_backfill: 1
+  consumer_group_backfill: "v1_events_post_processing_backfill"
+
+feature_usage_tracking:
+  topic: "events"
+  rate_limit: 1
+  consumer_group: "v1_feature_tracking_service"
+  topic_backfill: "events_post_processing_backfill"
+  rate_limit_backfill: 1
+  consumer_group_backfill: "v1_feature_tracking_service_backfill"
+
+feature_usage_tracking_lazy:
+  topic: "events_lazy"
+  rate_limit: 1
+  consumer_group: "v1_feature_tracking_service_lazy"
+
+feature_flag:
+  # This flag is used to enable/disable feature usage for analytics
+  enable_feature_usage_for_analytics: true # TODO: cleanup by 15th October 2025
+  # Tenant ID to force use v1 analytics service (empty string means no tenant is forced to v1)
+  force_v1_for_tenant: ""
